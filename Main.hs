@@ -35,9 +35,9 @@ instance F.Enumerable Input where
 
 property (Input ps p) = Model.subsumes test_sig ps p == subsumes test_sig ps p
 
-property2 ps p = Model.subsumes example_sig ps p == subsumes example_sig ps p
+property2 ps p = Model.subsumes test_sig ps p == subsumes test_sig ps p
 
-property4 ps p qs = subsumes example_sig ps p `implies` subsumes example_sig (ps++qs) p
+property4 ps p qs = subsumes test_sig ps p `implies` subsumes test_sig (ps++qs) p
   where implies a b = not a || b
 
 
