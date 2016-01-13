@@ -68,15 +68,15 @@ main' 1 = F.featCheck 15 (F.funcurry (F.funcurry property4))
 main' 2 = do
   print (subsumes test_sig ps p)
   print (Paper.subsumes test_sig ps p)
-  where ps = [fork tip tip, fork tip (fork tip tip), fork tip (fork x x)]
-        p = fork tip x
+  where ps = [fork (fork x x) (fork x x), fork x tip, fork tip x]
+        p = fork x x
         x = PVar
 
 main' 3 = LSC.depthCheck 4 property2
 
 main' 4 = do
   print (length example_patterns)
-  let res = (minimize subsumes example_sig example_patterns)
+  let res = (minimize Paper.subsumes example_sig example_patterns)
   print (length res)
   putStrLn (unlines (map show res))
 

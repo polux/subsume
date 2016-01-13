@@ -148,5 +148,5 @@ convert PVar = RVar
 
 subsumes :: Signature -> [Pattern] -> Pattern -> Bool
 subsumes sig [] p = False
-subsumes sig ps p = normalize sig (RPlus [convert q :<<: p' | q <- ps]) == RTrue
+subsumes sig ps p = traceShowId (normalize sig (RPlus [convert q :<<: p' | q <- ps])) == RTrue
   where p' = convert p
