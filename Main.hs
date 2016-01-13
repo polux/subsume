@@ -15,7 +15,7 @@
 import Datatypes ( Pattern(PVar) )
 import Examples
 import Implementation ( subsumes )
-import qualified ImplementationFromPaper as P
+import qualified ImplementationFromPaper as Paper
 import Enumerations ( myPairShrink )
 import qualified Model as Model ( subsumes )
 import qualified Test.Feat as F
@@ -34,7 +34,7 @@ instance F.Enumerable Input where
   enumerate = Input <$> ts <*> F.enumerate
     where ts = (\x y -> [x, y]) <$> F.enumerate <*> F.enumerate
 
-property (Input ps p) = Model.subsumes test_sig ps p == subsumes test_sig ps p
+property (Input ps p) = Paper.subsumes test_sig ps p == subsumes test_sig ps p
 
 property2 ps p = Model.subsumes test_sig ps p == subsumes test_sig ps p
 
@@ -76,7 +76,7 @@ main' 3 = LSC.depthCheck 4 property2
 
 main' 4 = do
   print (length example_patterns)
-  let res = (minimize P.subsumes example_sig example_patterns)
+  let res = (minimize subsumes example_sig example_patterns)
   print (length res)
   putStrLn (unlines (map show res))
 
