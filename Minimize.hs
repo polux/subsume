@@ -14,9 +14,7 @@
 
 module Minimize (minimize) where
 
-import Implementation ( subsumes )
-
-minimize sig ps = minimize' ps []
+minimize subsumes sig ps = minimize' ps []
   where minimize' [] kernel = kernel
         minimize' (p:ps) kernel =
            if subsumes sig (ps++kernel) p
