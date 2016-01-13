@@ -109,19 +109,14 @@ matchTwoTermVars xs = do
   guard (not (isRVar t) && not (isRVar u))
   return ((RUnion [t, u] :<<: RVar) : xs'')
 
-matchShallowPatterns :: [RPattern] -> Maybe [FunName]
-matchShallowPatterns ps = sequence (map check ps)
-  where check (RCons f xs) | all isRVar xs = Just f
-        check _ = Nothing
+constructorsOfShallowPatterns :: [RPattern] -> [FunName]
+constructorsOfShallowPatterns ps = [f | RCons f xs <- ps, all isRVar xs]
 
 complete sig [] = False
 complete sig (f:fs) = S.fromList (functionsOfSameRange sig f) == S.fromList (f:fs)
 
 isCompleteShallowPatterns :: Signature -> [RPattern] -> Bool
-isCompleteShallowPatterns sig ps =
-  case matchShallowPatterns ps of
-    Just fs -> complete sig fs
-    Nothing -> False
+isCompleteShallowPatterns sig ps = complete sig (constructorsOfShallowPatterns ps)
 
 trs :: Signature -> RPattern -> Maybe RPattern
 trs sig = trs'

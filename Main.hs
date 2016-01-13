@@ -31,12 +31,12 @@ data Input = Input [Pattern] Pattern
   deriving (Typeable, Show)
 
 instance F.Enumerable Input where
-  enumerate = Input <$> ts <*> F.enumerate
-    where ts = (\x y -> [x, y]) <$> F.enumerate <*> F.enumerate
+  enumerate = Input <$> F.enumerate <*> F.enumerate
+--    where ts = (\x y -> [x, y]) <$> F.enumerate <*> F.enumerate
 
 property (Input ps p) = Paper.subsumes test_sig ps p == subsumes test_sig ps p
 
-property2 ps p = Model.subsumes test_sig ps p == subsumes test_sig ps p
+property2 ps p = Paper.subsumes test_sig ps p == subsumes test_sig ps p
 
 property4 ps p qs = subsumes test_sig ps p `implies` subsumes test_sig (ps++qs) p
   where implies a b = not a || b
@@ -67,8 +67,8 @@ main' 1 = F.featCheck 15 (F.funcurry (F.funcurry property4))
 
 main' 2 = do
   print (subsumes test_sig ps p)
-  print (Model.subsumes test_sig ps p)
-  where ps = [fork tip tip, fork tip (fork tip tip)]
+  print (Paper.subsumes test_sig ps p)
+  where ps = [fork tip tip, fork tip (fork tip tip), fork tip (fork x x)]
         p = fork tip x
         x = PVar
 
