@@ -56,15 +56,11 @@ isRBottom :: RPattern -> Bool
 isRBottom RBottom = True
 isRBottom _ = False
 
-isRVar :: RPattern -> Bool
-isRVar RVar = True
-isRVar _ = False
-
 flattenRPlusses = concatMap flatten
   where flatten (RPlus ps) = ps
         flatten p = [p]
 
--- interleave [a,b,c] [A,B,C] = [[A,b,c], [a,B,c], [a,b,C]]
+-- interleave abc ABC = Abc, aBc, abC
 interleave :: [a] -> [a] -> [[a]]
 interleave [] [] = []
 interleave xs ys = zipWith3 glue (inits xs) ys (tails (tail xs))
