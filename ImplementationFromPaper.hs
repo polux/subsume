@@ -34,110 +34,67 @@ deriving instance Data FunName
 -- R is for "Rich" because it's patterns enriched with constructors from the algo
 data RPattern = RCons FunName [RPattern]
               | RVar
-              | RPattern :<<: RPattern
+              | RPattern :\: RPattern
               | RPlus [RPattern]
-              | RUnion [RPattern]
-              | RTrue
-              | RFalse
+              | RVarAt RPattern
+              | RBottom
   deriving (Eq, Ord, Data, Typeable)
 
 instance Show RPattern where
   show (RCons f ps) = show f ++ "(" ++ intercalate ", " (map show ps) ++ ")"
   show RVar = "_"
-  show (p1 :<<: p2) = "(" ++ show p1 ++ " <<? " ++ show p2 ++ ")"
-  show (RPlus ps) = "(" ++ intercalate " (+) " (map show ps) ++ ")"
-  show (RUnion ps) = "(" ++ intercalate " U " (map show ps) ++ ")"
-  show RTrue = "T"
-  show RFalse = "F"
+  show (p1 :\: p2) = "(" ++ show p1 ++ " \\ " ++ show p2 ++ ")"
+  show (RPlus ps) = "(" ++ intercalate " + " (map show ps) ++ ")"
+  show (RVarAt p) = "_@" ++ show p
+  show RBottom = "⊥"
 
 isRPlus :: RPattern -> Bool
 isRPlus (RPlus _) = True
 isRPlus _ = False
 
-isRUnion :: RPattern -> Bool
-isRUnion (RUnion _) = True
-isRUnion _ = False
-
-isRTrue :: RPattern -> Bool
-isRTrue RTrue = True
-isRTrue _ = False
-
-isRFalse :: RPattern -> Bool
-isRFalse RFalse = True
-isRFalse _ = False
+isRBottom :: RPattern -> Bool
+isRBottom RBottom = True
+isRBottom _ = False
 
 isRVar :: RPattern -> Bool
 isRVar RVar = True
 isRVar _ = False
 
-split :: (a -> Bool) -> [a] -> ([a], [a])
-split f xs = (filter f xs, filter (not . f) xs)
-
 flattenRPlusses = concatMap flatten
   where flatten (RPlus ps) = ps
         flatten p = [p]
 
-flattenRUnions = concatMap flatten
-  where flatten (RUnion ps) = ps
-        flatten p = [p]
-
-cursor :: [a] -> [(a, [a])]
-cursor xs = catMaybes (zipWith extract (inits xs) (tails xs))
-  where extract xs (y:ys) = Just (y, (xs++ys))
-        extract _ _ = Nothing
-
-match :: Eq a => [a] -> [a] -> Maybe ([a], a, a, [a])
-match xs ys = match' [] xs ys
-  where match' p (x:xs) (y:ys)
-          | x == y = match' (p++[x]) xs ys
-          | otherwise = if xs == ys then Just (p, x, y, xs) else Nothing
-        match' p [] [] = Nothing
-
-matchTwoFuns :: ([RPattern]-> RPattern) -> [RPattern] -> [[RPattern]]
-matchTwoFuns cons xs = do
-  (RCons f ps, xs') <- cursor xs
-  (RCons g qs, xs'') <- cursor xs'
-  guard (f == g)
-  case match ps qs of
-    Just (p, x, y, s) -> return (RCons f (p ++ [cons [x, y]] ++ s) : xs'')
-    Nothing -> []
-
-matchTwoTermVars :: [RPattern] -> [[RPattern]]
-matchTwoTermVars xs = do
-  (t :<<: RVar, xs') <- cursor xs
-  (u :<<: RVar, xs'') <- cursor xs'
-  guard (not (isRVar t) && not (isRVar u))
-  return ((RUnion [t, u] :<<: RVar) : xs'')
-
-constructorsOfShallowPatterns :: [RPattern] -> [FunName]
-constructorsOfShallowPatterns ps = [f | RCons f xs <- ps, all isRVar xs]
-
-complete sig [] = False
-complete sig (f:fs) = S.fromList (functionsOfSameRange sig f) == S.fromList (f:fs)
-
-isCompleteShallowPatterns :: Signature -> [RPattern] -> Bool
-isCompleteShallowPatterns sig ps = complete sig (constructorsOfShallowPatterns ps)
+-- interleave [a,b,c] [A,B,C] = [[A,b,c], [a,B,c], [a,b,C]]
+interleave :: [a] -> [a] -> [[a]]
+interleave [] [] = []
+interleave xs ys = zipWith3 glue (inits xs) ys (tails (tail xs))
+  where glue xs x ys = (xs++x:ys)
 
 trs :: Signature -> RPattern -> Maybe RPattern
 trs sig = trs'
   where
 --    trs' x | traceShow x False = undefined
-    trs' (RPlus ps) | any isRPlus ps = Just (RPlus (flattenRPlusses ps))
-    trs' (RUnion ps) | any isRUnion ps = Just (RUnion (flattenRUnions ps))
+    trs' (RPlus ps) | any isRPlus ps = Just (RPlus (flattenRPlusses ps))    -- flattening of +
 
-    trs' (RCons f ps :<<: RCons g qs)
-      | f == g = Just (if null ps then RTrue else RCons f (zipWith (:<<:) ps qs))
-      | otherwise = Just RFalse
-    trs' (RVar :<<: _) = Just RTrue
-    trs' (RCons f ps) | not (null ps) && all isRTrue ps = Just RTrue
-    trs' (RCons f ps) | any isRFalse ps = Just RFalse
-    trs' (RPlus ps) | any isRTrue ps = Just RTrue
-    trs' (RPlus ps) | any isRFalse ps = Just (RPlus (filter (not . isRFalse) ps))
-    trs' (RPlus ps) | (ps':_) <- matchTwoTermVars ps = Just (RPlus ps')
-    trs' (RPlus ps) | (ps':_) <- matchTwoFuns RPlus ps = Just (RPlus ps')
-    trs' (RUnion ps) | any isRVar ps = Just RVar
-    trs' (RUnion ps) | (ps':_) <- matchTwoFuns RUnion ps = Just (RUnion ps')
-    trs' (RUnion ps) | isCompleteShallowPatterns sig ps = Just RVar
+    trs' (RPlus []) = Just RBottom
+    trs' (RPlus ps) | any isRBottom ps = Just (RPlus (filter (not . isRBottom) ps))
+    trs' (RCons f ps) | any isRBottom ps = Just RBottom
+    trs' (RVarAt RBottom) = Just RBottom
+    trs' (u :\: RVar) = Just RBottom
+    trs' (u :\: RBottom) = Just u
+    trs' (u :\: RPlus vs) = Just (foldl (:\:) u vs)
+    trs' (RVar :\: RCons g ps) = Just (RVarAt (RPlus ts) :\: RCons g ps)
+      where ts = [RCons f (replicate (arity sig f) RVar) | f <- functionsOfSameRange sig g]
+    trs' (RBottom :\: RCons _ _) = Just RBottom
+    trs' (RPlus qs :\: RCons f ps) = Just (RPlus [q :\: RCons f ps | q <- qs])
+    trs' (RCons f ps :\: RCons g qs)
+        | f /= g || someUnchanged = Just (RCons f ps)
+        | otherwise = Just (RPlus [RCons f ps' | ps' <- interleave ps pqs])
+      where pqs = zipWith combine ps qs
+            combine p q = normalize sig (p :\: q)
+            someUnchanged = or (zipWith (==) ps pqs)
+    trs' (RVarAt u :\: v) = Just (RVarAt (u :\: v))
+    trs' (u :\: RVarAt v) = Just (u :\: v)
     trs' _ = Nothing
 
 normalize sig = rewrite (trs sig)
@@ -148,5 +105,9 @@ convert PVar = RVar
 
 subsumes :: Signature -> [Pattern] -> Pattern -> Bool
 subsumes sig [] p = False
-subsumes sig ps p = traceShowId (normalize sig (RPlus [convert q :<<: p' | q <- ps])) == RTrue
+subsumes sig ps p = normalize sig (p' :\: RPlus ps') == RBottom
   where p' = convert p
+        ps' = map convert ps
+
+main = --print (interleave "abcd" "ABCD" :: [String])
+  print (subsumes test_sig [fork (fork PVar PVar) PVar] (fork tip tip))
