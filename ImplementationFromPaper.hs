@@ -16,6 +16,7 @@
 
 module ImplementationFromPaper (subsumes) where
 
+import Debug.Trace
 import Data.List ( intercalate, tails, inits )
 import Datatypes
     ( Signature,
@@ -31,7 +32,7 @@ deriving instance Data FunName
 -- R is for "Rich" because it's patterns enriched with constructors from the algo
 data RPattern = RCons FunName [RPattern]
               | RVar
-              | RPlus [RPattern]
+              | RPlus RPattern RPattern
               | RBottom
               | Stuck
   deriving (Eq, Ord)
@@ -39,7 +40,7 @@ data RPattern = RCons FunName [RPattern]
 instance Show RPattern where
   show (RCons f ps) = show f ++ "(" ++ intercalate ", " (map show ps) ++ ")"
   show RVar = "_"
-  show (RPlus ps) = "(" ++ intercalate " + " (map show ps) ++ ")"
+  show (RPlus p1 p2) = "(" ++ show p1 ++ " + " ++ show p2 ++ ")"
   show RBottom = "⊥"
   show Stuck = "<stuck>"
 
@@ -59,20 +60,22 @@ trs sig p ps = foldl (\\) p ps
     rCons f ps | any isRBottom ps = RBottom
                | otherwise = RCons f ps
 
-    rPlus ps = if null ps' then RBottom else RPlus ps'
-      where ps' = filter (not . isRBottom) ps
+    rPlus RBottom RBottom = RBottom
+    rPlus RBottom u = u
+    rPlus t RBottom = t
+    rPlus t u = RPlus t u
 
     u \\ RVar = RBottom
     u \\ RBottom = u
-    RVar \\ p@(RCons g ps) = rPlus [pattern f \\ p | f <- functionsOfSameRange sig g]
+    RVar \\ p@(RCons g ps) = foldr1 rPlus [pattern f \\ p | f <- functionsOfSameRange sig g]
     RBottom \\ RCons _ _ = RBottom
     RCons f ps \\ RCons g qs
         | f /= g || someUnchanged = rCons f ps
-        | otherwise = rPlus [rCons f ps' | ps' <- interleave ps pqs]
+        | otherwise = foldr rPlus RBottom [rCons f ps' | ps' <- interleave ps pqs]
       where pqs = zipWith combine ps qs
             combine p q = (p \\ q)
             someUnchanged = or (zipWith (==) ps pqs)
-    RPlus qs \\ RCons f ps = rPlus [q \\ rCons f ps | q <- qs]
+    RPlus q1 q2 \\ p@(RCons _ _) = rPlus (q1 \\ p) (q2 \\ p)
     x \\ y = Stuck
 
     pattern f = RCons f (replicate (arity sig f) RVar)
