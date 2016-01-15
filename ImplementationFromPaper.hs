@@ -43,10 +43,6 @@ instance Show RPattern where
   show RBottom = "⊥"
   show Stuck = "<stuck>"
 
-isRPlus :: RPattern -> Bool
-isRPlus (RPlus _) = True
-isRPlus _ = False
-
 isRBottom :: RPattern -> Bool
 isRBottom RBottom = True
 isRBottom _ = False
