@@ -16,37 +16,32 @@
 
 module ImplementationFromPaper (subsumes) where
 
-import Debug.Trace
-import Data.List (intercalate, tails, inits)
-import Data.Maybe (catMaybes)
+import Data.List ( intercalate, tails, inits )
 import Datatypes
-    ( Signature, Pattern(..), FunName(..), arity, functionsOfSameRange )
-import qualified Data.Set as S ( fromList )
-import Data.Generics.Uniplate.Data
-import Data.Data
-import Data.Typeable
-import Control.Monad (guard)
-import Examples
-import qualified Data.Set as S ( fromList )
+    ( Signature,
+      Pattern(..),
+      FunName(..),
+      arity,
+      functionsOfSameRange )
+import Data.Data ( Data, Typeable )
+import Examples ( test_sig, fork, tip )
 
 deriving instance Data FunName
 
 -- R is for "Rich" because it's patterns enriched with constructors from the algo
 data RPattern = RCons FunName [RPattern]
               | RVar
-              | RPattern :\: RPattern
               | RPlus [RPattern]
-              | RVarAt RPattern
               | RBottom
-  deriving (Eq, Ord, Data, Typeable)
+              | Stuck
+  deriving (Eq, Ord)
 
 instance Show RPattern where
   show (RCons f ps) = show f ++ "(" ++ intercalate ", " (map show ps) ++ ")"
   show RVar = "_"
-  show (p1 :\: p2) = "(" ++ show p1 ++ " \\ " ++ show p2 ++ ")"
   show (RPlus ps) = "(" ++ intercalate " + " (map show ps) ++ ")"
-  show (RVarAt p) = "_@" ++ show p
   show RBottom = "⊥"
+  show Stuck = "<stuck>"
 
 isRPlus :: RPattern -> Bool
 isRPlus (RPlus _) = True
@@ -56,44 +51,35 @@ isRBottom :: RPattern -> Bool
 isRBottom RBottom = True
 isRBottom _ = False
 
-flattenRPlusses = concatMap flatten
-  where flatten (RPlus ps) = ps
-        flatten p = [p]
-
 -- interleave abc ABC = Abc, aBc, abC
 interleave :: [a] -> [a] -> [[a]]
 interleave [] [] = []
 interleave xs ys = zipWith3 glue (inits xs) ys (tails (tail xs))
   where glue xs x ys = (xs++x:ys)
 
-trs :: Signature -> RPattern -> Maybe RPattern
-trs sig = trs'
+trs :: Signature -> RPattern -> [RPattern] -> RPattern
+trs sig p ps = foldl (\\) p ps
   where
---    trs' x | traceShow x False = undefined
-    trs' (RPlus ps) | any isRPlus ps = Just (RPlus (flattenRPlusses ps))    -- flattening of +
+    rCons f ps | any isRBottom ps = RBottom
+               | otherwise = RCons f ps
 
-    trs' (RPlus []) = Just RBottom
-    trs' (RPlus ps) | any isRBottom ps = Just (RPlus (filter (not . isRBottom) ps))
-    trs' (RCons f ps) | any isRBottom ps = Just RBottom
-    trs' (RVarAt RBottom) = Just RBottom
-    trs' (u :\: RVar) = Just RBottom
-    trs' (u :\: RBottom) = Just u
-    trs' (u :\: RPlus vs) = Just (foldl (:\:) u vs)
-    trs' (RVar :\: RCons g ps) = Just (RVarAt (RPlus ts) :\: RCons g ps)
-      where ts = [RCons f (replicate (arity sig f) RVar) | f <- functionsOfSameRange sig g]
-    trs' (RBottom :\: RCons _ _) = Just RBottom
-    trs' (RPlus qs :\: RCons f ps) = Just (RPlus [q :\: RCons f ps | q <- qs])
-    trs' (RCons f ps :\: RCons g qs)
-        | f /= g || someUnchanged = Just (RCons f ps)
-        | otherwise = Just (RPlus [RCons f ps' | ps' <- interleave ps pqs])
+    rPlus ps = if null ps' then RBottom else RPlus ps'
+      where ps' = filter (not . isRBottom) ps
+
+    u \\ RVar = RBottom
+    u \\ RBottom = u
+    RVar \\ p@(RCons g ps) = rPlus [pattern f \\ p | f <- functionsOfSameRange sig g]
+    RBottom \\ RCons _ _ = RBottom
+    RCons f ps \\ RCons g qs
+        | f /= g || someUnchanged = rCons f ps
+        | otherwise = rPlus [rCons f ps' | ps' <- interleave ps pqs]
       where pqs = zipWith combine ps qs
-            combine p q = normalize sig (p :\: q)
+            combine p q = (p \\ q)
             someUnchanged = or (zipWith (==) ps pqs)
-    trs' (RVarAt u :\: v) = Just (RVarAt (u :\: v))
-    trs' (u :\: RVarAt v) = Just (u :\: v)
-    trs' _ = Nothing
+    RPlus qs \\ RCons f ps = rPlus [q \\ rCons f ps | q <- qs]
+    x \\ y = Stuck
 
-normalize sig = rewrite (trs sig)
+    pattern f = RCons f (replicate (arity sig f) RVar)
 
 convert :: Pattern -> RPattern
 convert (PCons f ps) = RCons f (map convert ps)
@@ -101,9 +87,5 @@ convert PVar = RVar
 
 subsumes :: Signature -> [Pattern] -> Pattern -> Bool
 subsumes sig [] p = False
-subsumes sig ps p = normalize sig (p' :\: RPlus ps') == RBottom
-  where p' = convert p
-        ps' = map convert ps
+subsumes sig ps p = trs sig (convert p) (map convert ps) == RBottom
 
-main = --print (interleave "abcd" "ABCD" :: [String])
-  print (subsumes test_sig [fork (fork PVar PVar) PVar] (fork tip tip))

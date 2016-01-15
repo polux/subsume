@@ -61,7 +61,7 @@ main = do
   [x] <- getArgs
   main' (read x :: Int)
 
-main' 0 = F.featCheck 22 property
+main' 0 = F.featCheck 30 property
 
 main' 1 = F.featCheck 15 (F.funcurry (F.funcurry property4))
 
