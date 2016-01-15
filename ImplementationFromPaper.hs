@@ -34,7 +34,6 @@ data RPattern = RCons FunName [RPattern]
               | RVar
               | RPlus RPattern RPattern
               | RBottom
-              | Stuck
   deriving (Eq, Ord)
 
 instance Show RPattern where
@@ -42,7 +41,6 @@ instance Show RPattern where
   show RVar = "_"
   show (RPlus p1 p2) = "(" ++ show p1 ++ " + " ++ show p2 ++ ")"
   show RBottom = "⊥"
-  show Stuck = "<stuck>"
 
 isRBottom :: RPattern -> Bool
 isRBottom RBottom = True
@@ -52,7 +50,7 @@ isRBottom _ = False
 interleave :: [a] -> [a] -> [[a]]
 interleave [] [] = []
 interleave xs ys = zipWith3 glue (inits xs) ys (tails (tail xs))
-  where glue xs x ys = (xs++x:ys)
+  where glue xs x ys = xs ++ x : ys
 
 trs :: Signature -> RPattern -> [RPattern] -> RPattern
 trs sig p ps = foldl (\\) p ps
@@ -60,7 +58,6 @@ trs sig p ps = foldl (\\) p ps
     rCons f ps | any isRBottom ps = RBottom
                | otherwise = RCons f ps
 
-    rPlus RBottom RBottom = RBottom
     rPlus RBottom u = u
     rPlus t RBottom = t
     rPlus t u = RPlus t u
@@ -68,17 +65,14 @@ trs sig p ps = foldl (\\) p ps
     u \\ RVar = RBottom
     u \\ RBottom = u
     RVar \\ p@(RCons g ps) = foldr1 rPlus [pattern f \\ p | f <- functionsOfSameRange sig g]
+      where pattern f = RCons f (replicate (arity sig f) RVar)
     RBottom \\ RCons _ _ = RBottom
     RCons f ps \\ RCons g qs
         | f /= g || someUnchanged = rCons f ps
         | otherwise = foldr rPlus RBottom [rCons f ps' | ps' <- interleave ps pqs]
-      where pqs = zipWith combine ps qs
-            combine p q = (p \\ q)
+      where pqs = zipWith (\\) ps qs
             someUnchanged = or (zipWith (==) ps pqs)
     RPlus q1 q2 \\ p@(RCons _ _) = rPlus (q1 \\ p) (q2 \\ p)
-    x \\ y = Stuck
-
-    pattern f = RCons f (replicate (arity sig f) RVar)
 
 convert :: Pattern -> RPattern
 convert (PCons f ps) = RCons f (map convert ps)
