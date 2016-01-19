@@ -24,14 +24,15 @@ import Datatypes (FunName, TypeName, Decl(..), Signature(..))
 import Data.List ( find )
 import Data.Maybe ( fromJust )
 
-
 _funName (Decl f _ _) = f
 _domain (Decl _ d _) = d
 _range (Decl _ _ r) = r
 
 decl :: Signature -> FunName -> Decl
-decl (Signature sig) f = fromJust (find hasF sig)
+decl (Signature sig) f = unpack (find hasF sig)
   where hasF (Decl g _ _) = f == g
+        unpack (Just d) = d
+        unpack Nothing = error (show f ++ " is not declared")
 
 domain :: Signature -> FunName -> [TypeName]
 domain sig f = _domain (decl sig f)

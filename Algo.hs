@@ -19,8 +19,12 @@ module Algo (otrsToTrs) where
 import Debug.Trace
 import Data.List ( intercalate, tails, inits )
 import Data.Traversable
+import qualified Data.Map.Strict as M
 import Datatypes
 import Signature
+import Control.Monad.Writer.Strict (Writer, runWriter, tell)
+import Terms
+import Maranget
 
 isBottom :: Term -> Bool
 isBottom Bottom = True
@@ -62,10 +66,6 @@ difference sig p ps = foldl (\\) p ps
     Alias x p1 \\ p2 = alias x (p1 \\ p2)
     p1 \\ Alias x p2 = p1 \\ p2
 
-subsumes :: Signature -> [Term] -> Term -> Bool
-subsumes sig [] p = False
-subsumes sig ps p = difference sig p ps == Bottom
-
 minimize :: Signature -> [Term] -> [Term]
 minimize sig ps = minimize' ps []
   where minimize' [] kernel = kernel
@@ -81,10 +81,21 @@ removePlusses (Plus p1 p2) = removePlusses p1 ++ removePlusses p2
 removePlusses (Appl f ps) = map (Appl f) (traverse removePlusses ps)
 removePlusses (Alias x p) = map (Alias x) (removePlusses p)
 removePlusses (Var x) = [Var x]
-removePlusses Bottom = [Bottom]
+removePlusses Bottom = []
 
 removeAliases :: Rule -> Rule
-removeAliases = id -- TODO: do something
+removeAliases (Rule lhs rhs) = Rule lhs' (substitute subst rhs)
+  where (lhs', subst) = collectAliases (renameUnderscores lhs)
+
+        collectAliases t = runWriter (collect t)
+
+        collect :: Term -> Writer Substitution Term
+        collect (Appl f ts) = Appl f <$> (mapM collect ts)
+        collect (Var x) = return (Var x)
+        collect (Alias x t) = do
+          t' <- collect t
+          tell (M.singleton x t')
+          return t'
 
 otrsToAdditiveTrs :: Signature -> [Rule] -> [Rule]
 otrsToAdditiveTrs sig rules = zipWith diff rules (inits patterns)
@@ -96,9 +107,8 @@ aliasedTrsToTrs = map removeAliases
 
 additiveTrsToAliasedTrs :: Signature -> [Rule] -> [Rule]
 additiveTrsToAliasedTrs sig rules = concatMap transform rules
-  where transform (Rule lhs rhs) = map (Rule lhs) (minimize sig (removePlusses rhs))
+  where transform (Rule lhs rhs) = map (flip Rule rhs) (minimize sig (removePlusses lhs))
 
 otrsToTrs :: Signature -> [Rule] -> [Rule]
 otrsToTrs sig = aliasedTrsToTrs . additiveTrsToAliasedTrs sig . otrsToAdditiveTrs sig
-
 

@@ -15,10 +15,12 @@
 module Datatypes (
   FunName(..),
   TypeName(..),
+  VarName(..),
   Decl(..),
   Signature(..),
   Term(..),
-  Rule(..)
+  Rule(..),
+  Module(..)
 ) where
 
 import Data.List ( intercalate )
@@ -52,6 +54,9 @@ data Term = Appl FunName [Term]
 data Rule = Rule Term Term
   deriving (Eq, Ord)
 
+data Module = Module Signature [Rule]
+  deriving (Eq, Ord, Show)
+
 {- Pretty Printing -}
 
 instance Show VarName where
@@ -67,7 +72,7 @@ parSep :: [String] -> String
 parSep ss = "(" ++ intercalate ", " ss ++ ")"
 
 instance Show Decl where
-  show (Decl f tys ty) = show f ++ ": " ++ parSep (map show tys) ++ " -> " ++ show ty
+  show (Decl f tys ty) = show f ++ ": " ++ intercalate " * " (map show tys) ++ " -> " ++ show ty
 
 instance Show Signature where
   show (Signature decls) = show decls

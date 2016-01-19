@@ -12,13 +12,15 @@
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
 
-module Implementation (subsumes) where
+{-# LANGUAGE OverloadedStrings #-}
+
+module Maranget (subsumes) where
 
 import Datatypes
-    ( Signature, Pattern(..), FunName, arity, functionsOfSameRange )
+import Signature
 import qualified Data.Set as S ( fromList )
 
-type Vector = [Pattern]
+type Vector = [Term]
 type Matrix = [Vector]
 
 {- Helper Functions -}
@@ -27,30 +29,34 @@ sameSet :: Ord a => [a] -> [a] -> Bool
 sameSet xs ys = S.fromList xs == S.fromList ys
 
 startsWithVar :: Vector -> Bool
-startsWithVar (PVar : _) = True
+startsWithVar (Var _ : _) = True
 startsWithVar _ = False
 
 startsWithCons :: Vector -> Bool
-startsWithCons (PCons _ _ : _) = True
+startsWithCons (Appl _ _ : _) = True
 startsWithCons _ = False
 
 headConstructor :: Vector -> FunName
-headConstructor (PCons c _ : _) = c
+headConstructor (Appl c _ : _) = c
 
 headConstructors :: Matrix -> [FunName]
 headConstructors m = map headConstructor (filter startsWithCons m)
 
+dropAliases (Appl f ts) = Appl f (map dropAliases ts)
+dropAliases v@(Var x) = v
+dropAliases (Alias x t) = t
+
 {- Algo -}
 
-subsumes :: Signature -> [Pattern] -> Pattern -> Bool
-subsumes sig ps p = useless [[q] | q <- ps] [p]
+subsumes :: Signature -> [Term] -> Term -> Bool
+subsumes sig ps p = useless [[dropAliases q] | q <- ps] [dropAliases p]
 
   where
 
     useless [] _ = False
     useless _ [] = True
-    useless m v@(PCons c _ : _) = useless (specializeM c m) (specializeV c v)
-    useless m v@(PVar : ps)
+    useless m v@(Appl c _ : _) = useless (specializeM c m) (specializeV c v)
+    useless m v@(Var _ : ps)
       | complete = and [useless (specializeM c m) (specializeV c v) | c <- possibleCtors]
       | otherwise = useless (defaultM m) ps
       where
@@ -61,7 +67,8 @@ subsumes sig ps p = useless [[q] | q <- ps] [p]
     specializeM c m = map (specializeV c) (filter keep m)
        where keep v = startsWithVar v || (headConstructor v == c)
 
-    specializeV c (PCons _ ps : qs) = ps ++ qs
-    specializeV c (PVar : qs) = replicate (arity sig c) PVar ++ qs
+    specializeV c (Appl _ ps : qs) = ps ++ qs
+    specializeV c (Var _ : qs) = replicate (arity sig c) (Var "_") ++ qs
 
     defaultM m = map tail (filter startsWithVar m)
+
