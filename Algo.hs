@@ -65,11 +65,18 @@ subsumes :: Signature -> [Term] -> Term -> Bool
 subsumes sig [] p = False
 subsumes sig ps p = difference sig p ps == Bottom
 
+minimize :: Signature -> [Term] -> [Term]
+minimize sig ps = minimize' ps []
+  where minimize' [] kernel = kernel
+        minimize' (p:ps) kernel =
+           if subsumes sig (ps++kernel) p
+              then shortest (minimize' ps (p:kernel)) (minimize' ps kernel)
+              else minimize' ps (p:kernel)
+
+        shortest xs ys = if length xs <= length ys then xs else ys
+
 removePlusses :: Term -> [Term]
 removePlusses = undefined
-
-minimize :: Signature -> [Term] -> [Term]
-minimize = undefined
 
 removeAliases :: Rule -> Rule
 removeAliases = undefined
