@@ -18,6 +18,7 @@ module Algo (otrsToTrs) where
 
 import Debug.Trace
 import Data.List ( intercalate, tails, inits )
+import Data.Traversable
 import Datatypes
 import Signature
 
@@ -76,13 +77,19 @@ minimize sig ps = minimize' ps []
         shortest xs ys = if length xs <= length ys then xs else ys
 
 removePlusses :: Term -> [Term]
-removePlusses = undefined
+removePlusses (Plus p1 p2) = removePlusses p1 ++ removePlusses p2
+removePlusses (Appl f ps) = map (Appl f) (traverse removePlusses ps)
+removePlusses (Alias x p) = map (Alias x) (removePlusses p)
+removePlusses (Var x) = [Var x]
+removePlusses Bottom = [Bottom]
 
 removeAliases :: Rule -> Rule
-removeAliases = undefined
+removeAliases = id -- TODO: do something
 
 otrsToAdditiveTrs :: Signature -> [Rule] -> [Rule]
-otrsToAdditiveTrs = undefined
+otrsToAdditiveTrs sig rules = zipWith diff rules (inits patterns)
+  where patterns = [lhs | Rule lhs _ <- rules]
+        diff (Rule lhs rhs) lhss = Rule (difference sig lhs lhss) rhs
 
 aliasedTrsToTrs :: [Rule] -> [Rule]
 aliasedTrsToTrs = map removeAliases
