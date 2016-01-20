@@ -12,16 +12,30 @@
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
 
-{-# LANGUAGE OverloadedStrings #-}
 
 import Datatypes
 import Algo
 import Parser
-import System.Environment (getArgs)
 
-main = do
-  [filename] <- getArgs
-  s <- readFile filename
-  case parseModule filename s of
-    Left err -> putStrLn (show err)
-    Right (Module sig trs) -> mapM_ print (otrsToTrs sig trs)
+import Control.Applicative ((<$>))
+import GHCJS.DOM (webViewGetDomDocument, runWebGUI)
+import GHCJS.DOM.Document (getElementById)
+import GHCJS.DOM.Element (setInnerHTML, click)
+import GHCJS.DOM.HTMLTextAreaElement (castToHTMLTextAreaElement, getValue)
+import GHCJS.DOM.EventM (on)
+
+main = runWebGUI $ \ webView -> do
+    Just doc <- webViewGetDomDocument webView
+    Just inputArea <- fmap castToHTMLTextAreaElement <$> getElementById doc "input-area"
+    Just outputArea <- getElementById doc "output-area"
+    Just translateButton <- getElementById doc "translate-button"
+    on translateButton click $ do
+      Just inputText <- getValue inputArea
+      setInnerHTML outputArea (Just (run inputText))
+      return ()
+    return ()
+
+run :: String -> String
+run s = case parseModule "text area" s of
+    Left err -> show err
+    Right (Module sig trs) -> unlines (map show (otrsToTrs sig trs))
