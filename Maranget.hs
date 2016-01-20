@@ -16,6 +16,7 @@
 
 module Maranget (subsumes) where
 
+import Debug.Trace
 import Datatypes
 import Signature
 import qualified Data.Set as S ( fromList )
@@ -44,7 +45,7 @@ headConstructors m = map headConstructor (filter startsWithCons m)
 
 dropAliases (Appl f ts) = Appl f (map dropAliases ts)
 dropAliases v@(Var x) = v
-dropAliases (Alias x t) = t
+dropAliases (Alias x t) = dropAliases t
 
 {- Algo -}
 
@@ -53,6 +54,7 @@ subsumes sig ps p = useless [[dropAliases q] | q <- ps] [dropAliases p]
 
   where
 
+    --useless m v | trace (show m ++ " " ++ show v) False = undefined
     useless [] _ = False
     useless _ [] = True
     useless m v@(Appl c _ : _) = useless (specializeM c m) (specializeV c v)
@@ -62,7 +64,7 @@ subsumes sig ps p = useless [[dropAliases q] | q <- ps] [dropAliases p]
       where
         complete = not (null headCtors) && sameSet headCtors possibleCtors
         headCtors = headConstructors m
-        possibleCtors = functionsOfSameRange sig (head headCtors)
+        possibleCtors = ctorsOfSameRange sig (head headCtors)
 
     specializeM c m = map (specializeV c) (filter keep m)
        where keep v = startsWithVar v || (headConstructor v == c)

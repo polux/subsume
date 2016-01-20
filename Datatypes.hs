@@ -41,7 +41,7 @@ newtype TypeName = TypeName String
 data Decl = Decl FunName [TypeName] TypeName
   deriving (Eq, Ord)
 
-data Signature = Signature [Decl]
+data Signature = Signature [Decl] [Decl]
   deriving (Eq, Ord)
 
 data Term = Appl FunName [Term]
@@ -75,7 +75,7 @@ instance Show Decl where
   show (Decl f tys ty) = show f ++ ": " ++ intercalate " * " (map show tys) ++ " -> " ++ show ty
 
 instance Show Signature where
-  show (Signature decls) = show decls
+  show (Signature ctors funs) = show (ctors, funs)
 
 instance Show Term where
   show (Appl f ps) = show f ++ parSep (map show ps)

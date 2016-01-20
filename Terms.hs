@@ -15,7 +15,8 @@
 module Terms (
   Substitution,
   substitute,
-  renameUnderscores
+  renameUnderscores,
+  matches
 ) where
 
 import Datatypes
@@ -48,3 +49,9 @@ renameUnderscores t = evalState (rename t) 0
           put (n+1)
           return ("_" ++ show n)
 
+matches :: Term -> Term -> Bool
+matches (Appl f ts) (Appl g us) = f == g && and (zipWith matches ts us)
+matches (Alias _ t) u = matches t u
+matches t (Alias _ u) = matches t u
+matches (Var _) t = True
+matches _ _ = False

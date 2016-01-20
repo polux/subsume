@@ -22,7 +22,7 @@ import Text.Parsec.Language
 import qualified Text.Parsec.Token as P
 
 language = javaStyle
-  { P.reservedNames = ["SIGNATURE", "RULES"]
+  { P.reservedNames = ["CONSTRUCTORS", "FUNCTIONS", "RULES"]
   , P.reservedOpNames = ["=", "->", ":", "*"]
   }
 
@@ -40,7 +40,8 @@ arrow = P.reservedOp lexer "->"
 pipe = P.reservedOp lexer "|"
 star = P.reservedOp lexer "*"
 
-signatureKw = P.reserved lexer "SIGNATURE"
+constructorsKw = P.reserved lexer "CONSTRUCTORS"
+functionsKw = P.reserved lexer "FUNCTIONS"
 rulesKw = P.reserved lexer "RULES"
 
 funName = FunName <$> identifier
@@ -69,12 +70,12 @@ decl :: Parser Decl
 decl = mkDecl <$> funName <*> colon <*> funType
   where mkDecl f _ (domain, range) = Decl f domain range
 
-signature :: Parser Signature
-signature = Signature <$> many (try decl)
+decls :: Parser [Decl]
+decls = many (try decl)
 
 modul :: Parser Module
-modul = mkModule <$> signatureKw <*> signature <*> rulesKw <*> rules
-  where mkModule _ sig _ rules = Module sig rules
+modul = mkModule <$> constructorsKw <*> decls <*> functionsKw <*> decls <*> rulesKw <*> rules
+  where mkModule _ ctors _ funs _ rules = Module (Signature ctors funs) rules
 
 parseModule :: String -> String -> Either ParseError Module
 parseModule sourceName input = parse (whiteSpace *> modul <* eof) sourceName input

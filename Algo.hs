@@ -20,6 +20,7 @@ import Debug.Trace
 import Data.List ( intercalate, tails, inits )
 import Data.Traversable
 import qualified Data.Map.Strict as M
+import qualified Data.Set as S
 import Datatypes
 import Signature
 import Control.Monad.Writer.Strict (Writer, runWriter, tell)
@@ -54,7 +55,7 @@ difference sig p ps = foldl (\\) p ps
     u \\ (Var _) = Bottom
     u \\ Bottom = u
     (Var x) \\ p@(Appl g ps) = alias x (plus' [pattern f \\ p | f <- fs])
-      where fs = functionsOfSameRange sig g
+      where fs = ctorsOfSameRange sig g
             pattern f = Appl f (replicate (arity sig f) (Var "_"))
     Bottom \\ Appl _ _ = Bottom
     Appl f ps \\ Appl g qs
@@ -66,6 +67,11 @@ difference sig p ps = foldl (\\) p ps
     Alias x p1 \\ p2 = alias x (p1 \\ p2)
     p1 \\ Alias x p2 = p1 \\ p2
 
+preMinimize :: [Term] -> [Term]
+preMinimize patterns = filter (not . isMatched) patterns
+  where isMatched p = any (matches' p) patterns
+        matches' p q = p /= q && matches q p
+
 minimize :: Signature -> [Term] -> [Term]
 minimize sig ps = minimize' ps []
   where minimize' [] kernel = kernel
@@ -76,12 +82,13 @@ minimize sig ps = minimize' ps []
 
         shortest xs ys = if length xs <= length ys then xs else ys
 
-removePlusses :: Term -> [Term]
-removePlusses (Plus p1 p2) = removePlusses p1 ++ removePlusses p2
-removePlusses (Appl f ps) = map (Appl f) (traverse removePlusses ps)
-removePlusses (Alias x p) = map (Alias x) (removePlusses p)
-removePlusses (Var x) = [Var x]
-removePlusses Bottom = []
+removePlusses :: Term -> S.Set Term
+removePlusses (Plus p1 p2) = removePlusses p1 `S.union` removePlusses p2
+removePlusses (Appl f ps) = S.map (Appl f) (traverseSet removePlusses ps)
+  where traverseSet f s = S.fromList (traverse (S.toList . f) s)
+removePlusses (Alias x p) = S.map (Alias x) (removePlusses p)
+removePlusses (Var x) = S.singleton (Var x)
+removePlusses Bottom = S.empty
 
 removeAliases :: Rule -> Rule
 removeAliases (Rule lhs rhs) = Rule lhs' (substitute subst rhs)
@@ -107,7 +114,8 @@ aliasedTrsToTrs = map removeAliases
 
 additiveTrsToAliasedTrs :: Signature -> [Rule] -> [Rule]
 additiveTrsToAliasedTrs sig rules = concatMap transform rules
-  where transform (Rule lhs rhs) = map (flip Rule rhs) (minimize sig (removePlusses lhs))
+  where transform (Rule lhs rhs) = map (flip Rule rhs) (expand lhs)
+        expand = minimize sig . preMinimize . S.toList . removePlusses
 
 otrsToTrs :: Signature -> [Rule] -> [Rule]
 otrsToTrs sig = aliasedTrsToTrs . additiveTrsToAliasedTrs sig . otrsToAdditiveTrs sig

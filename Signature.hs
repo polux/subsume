@@ -16,8 +16,8 @@ module Signature (
   domain,
   range,
   arity,
-  functionsOfRange,
-  functionsOfSameRange
+  ctorsOfRange,
+  ctorsOfSameRange
 ) where
 
 import Datatypes (FunName, TypeName, Decl(..), Signature(..))
@@ -29,7 +29,7 @@ _domain (Decl _ d _) = d
 _range (Decl _ _ r) = r
 
 decl :: Signature -> FunName -> Decl
-decl (Signature sig) f = unpack (find hasF sig)
+decl (Signature ctors funs) f = unpack (find hasF (ctors ++ funs))
   where hasF (Decl g _ _) = f == g
         unpack (Just d) = d
         unpack Nothing = error (show f ++ " is not declared")
@@ -43,10 +43,10 @@ range sig f = _range (decl sig f)
 arity :: Signature -> FunName -> Int
 arity sig f = length (domain sig f)
 
-functionsOfRange :: Signature -> TypeName -> [FunName]
-functionsOfRange (Signature sig) ty = map _funName (filter hasRangeTy sig)
+ctorsOfRange :: Signature -> TypeName -> [FunName]
+ctorsOfRange (Signature ctors _) ty = map _funName (filter hasRangeTy ctors)
   where hasRangeTy (Decl _ _ ty') = ty == ty'
 
-functionsOfSameRange :: Signature -> FunName -> [FunName]
-functionsOfSameRange sig f = functionsOfRange sig (range sig f)
+ctorsOfSameRange :: Signature -> FunName -> [FunName]
+ctorsOfSameRange sig f = ctorsOfRange sig (range sig f)
 

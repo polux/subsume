@@ -12,13 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-SIGNATURE
+CONSTRUCTORS
 
-fork : Tree * Tree -> Tree
-tip  : Tree
+E : Tree
+T : Color * Tree * Nat * Tree -> Tree
+
+R : Color
+B : Color
+
+Z : Nat
+S : Nat -> Nat
+
+FUNCTIONS
+
+balance : Tree -> Tree
 
 RULES
 
-fork(tip(), x) -> x
-fork(x, tip()) -> x
-fork(x, y) -> fork(x, y)
+balance(T(B(),T(R(),T(R(),a,x,b),y,c),z,d)) -> T(R(),T(B(),a,x,b),y,T(B(),c,z,d))
+balance(T(B(),T(R(),a,x,T(R(),b,y,c)),z,d)) -> T(R(),T(B(),a,x,b),y,T(B(),c,z,d))
+balance(T(B(),a,x,T(R(),T(R(),b,y,c),z,d))) -> T(R(),T(B(),a,x,b),y,T(B(),c,z,d))
+balance(T(B(),a,x,T(R(),b,y,T(R(),c,z,d)))) -> T(R(),T(B(),a,x,b),y,T(B(),c,z,d))
+balance(t) -> t
