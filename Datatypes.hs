@@ -12,6 +12,8 @@
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
 
+{-# LANGUAGE DeriveGeneric, TypeOperators, TypeFamilies #-}
+
 module Datatypes (
   FunName(..),
   TypeName(..),
@@ -26,30 +28,33 @@ module Datatypes (
 import Data.List ( intercalate )
 import Data.Maybe ( fromJust )
 import Data.String ( IsString(..) )
+import Data.MemoTrie
+    ( Reg, HasTrie(..), untrieGeneric, trieGeneric, enumerateGeneric )
+import GHC.Generics ( Generic )
 
 {- Datatypes -}
 
 newtype VarName = VarName String
-  deriving (Eq, Ord)
+  deriving (Eq, Ord, Generic)
 
 newtype FunName = FunName String
-  deriving (Eq, Ord)
+  deriving (Eq, Ord, Generic)
 
 newtype TypeName = TypeName String
-  deriving (Eq, Ord)
+  deriving (Eq, Ord, Generic)
 
 data Decl = Decl FunName [TypeName] TypeName
-  deriving (Eq, Ord)
+  deriving (Eq, Ord, Generic)
 
 data Signature = Signature [Decl] [Decl]
-  deriving (Eq, Ord)
+  deriving (Eq, Ord, Generic)
 
 data Term = Appl FunName [Term]
           | Var VarName
           | Plus Term Term
           | Alias VarName Term
           | Bottom
-  deriving (Eq, Ord)
+  deriving (Eq, Ord, Generic)
 
 data Rule = Rule Term Term
   deriving (Eq, Ord)
@@ -98,3 +103,40 @@ instance IsString FunName where
 instance IsString TypeName where
   fromString = TypeName
 
+{- HasTrie Instances -}
+
+instance HasTrie VarName where
+  newtype (VarName :->: b) = VarNameTrie { unVarNameTrie :: Reg VarName :->: b }
+  trie = trieGeneric VarNameTrie
+  untrie = untrieGeneric unVarNameTrie
+  enumerate = enumerateGeneric unVarNameTrie
+
+instance HasTrie FunName where
+  newtype (FunName :->: b) = FunNameTrie { unFunNameTrie :: Reg FunName :->: b }
+  trie = trieGeneric FunNameTrie
+  untrie = untrieGeneric unFunNameTrie
+  enumerate = enumerateGeneric unFunNameTrie
+
+instance HasTrie TypeName where
+  newtype (TypeName :->: b) = TypeNameTrie { unTypeNameTrie :: Reg TypeName :->: b }
+  trie = trieGeneric TypeNameTrie
+  untrie = untrieGeneric unTypeNameTrie
+  enumerate = enumerateGeneric unTypeNameTrie
+
+instance HasTrie Decl where
+  newtype (Decl :->: b) = DeclTrie { unDeclTrie :: Reg Decl :->: b }
+  trie = trieGeneric DeclTrie
+  untrie = untrieGeneric unDeclTrie
+  enumerate = enumerateGeneric unDeclTrie
+
+instance HasTrie Signature where
+  newtype (Signature :->: b) = SignatureTrie { unSignatureTrie :: Reg Signature :->: b }
+  trie = trieGeneric SignatureTrie
+  untrie = untrieGeneric unSignatureTrie
+  enumerate = enumerateGeneric unSignatureTrie
+
+instance HasTrie Term where
+  newtype (Term :->: b) = TermTrie { unTermTrie :: Reg Term :->: b }
+  trie = trieGeneric TermTrie
+  untrie = untrieGeneric unTermTrie
+  enumerate = enumerateGeneric unTermTrie

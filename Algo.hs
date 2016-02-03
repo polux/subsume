@@ -26,6 +26,7 @@ import Signature
 import Control.Monad.Writer.Strict (Writer, runWriter, tell)
 import Terms
 import Maranget
+import Data.MemoTrie (memo2)
 
 isBottom :: Term -> Bool
 isBottom Bottom = True
@@ -67,20 +68,61 @@ difference sig p ps = foldl (\\) p ps
     Alias x p1 \\ p2 = alias x (p1 \\ p2)
     p1 \\ Alias x p2 = p1 \\ p2
 
+makeMemoSubsume :: Signature -> [Term] -> Term -> Bool
+makeMemoSubsume sig = let difference = makeMemoDifference sig in \ps p -> difference p ps == Bottom
+
+makeMemoDifference :: Signature -> Term -> [Term] -> Term
+makeMemoDifference sig = let (\\) = makeMemoDiff sig in \p ps -> foldl (\\) p ps
+
+makeMemoDiff :: Signature -> Term -> Term -> Term
+makeMemoDiff sig = (\\\)
+  where
+    appl f ps | any isBottom ps = Bottom
+              | otherwise = Appl f ps
+
+    plus Bottom u = u
+    plus t Bottom = t
+    plus t u = Plus t u
+
+    plus' = foldr plus Bottom
+
+    alias x Bottom = Bottom
+    alias x t = Alias x t
+
+    u \\ (Var _) = Bottom
+    u \\ Bottom = u
+    (Var x) \\ p@(Appl g ps) = alias x (plus' [pattern f \\\ p | f <- fs])
+      where fs = ctorsOfSameRange sig g
+            pattern f = Appl f (replicate (arity sig f) (Var "_"))
+    Bottom \\ Appl _ _ = Bottom
+    Appl f ps \\ Appl g qs
+        | f /= g || someUnchanged = appl f ps
+        | otherwise = plus' [appl f ps' | ps' <- interleave ps pqs]
+      where pqs = zipWith (\\\) ps qs
+            someUnchanged = or (zipWith (==) ps pqs)
+    Plus q1 q2 \\ p@(Appl _ _) = plus (q1 \\\ p) (q2 \\\ p)
+    Alias x p1 \\ p2 = alias x (p1 \\\ p2)
+    p1 \\ Alias x p2 = p1 \\\ p2
+
+    (\\\) = memo2 (\\)
+
 preMinimize :: [Term] -> [Term]
 preMinimize patterns = filter (not . isMatched) patterns
   where isMatched p = any (matches' p) patterns
         matches' p q = p /= q && matches q p
 
-minimize :: Signature -> [Term] -> [Term]
-minimize sig ps = minimize' ps []
+--minimize :: Signature -> [Term] -> [Term]
+minimize subsume sig ps = minimize' ps []
   where minimize' [] kernel = kernel
         minimize' (p:ps) kernel =
-           if subsumes sig (ps++kernel) p
+           if subsume (ps++kernel) p
               then shortest (minimize' ps (p:kernel)) (minimize' ps kernel)
               else minimize' ps (p:kernel)
 
         shortest xs ys = if length xs <= length ys then xs else ys
+
+        --subsumes' ps p = difference sig p ps == Bottom
+        --subsumes' = makeMemoSubsume sig
 
 removePlusses :: Term -> S.Set Term
 removePlusses (Plus p1 p2) = removePlusses p1 `S.union` removePlusses p2
@@ -115,7 +157,8 @@ aliasedTrsToTrs = map removeAliases
 additiveTrsToAliasedTrs :: Signature -> [Rule] -> [Rule]
 additiveTrsToAliasedTrs sig rules = concatMap transform rules
   where transform (Rule lhs rhs) = map (flip Rule rhs) (expand lhs)
-        expand = minimize sig . preMinimize . S.toList . removePlusses
+        expand = minimize subsume sig . preMinimize . S.toList . removePlusses
+        subsume = makeMemoSubsume sig
 
 otrsToTrs :: Signature -> [Rule] -> [Rule]
 otrsToTrs sig = aliasedTrsToTrs . additiveTrsToAliasedTrs sig . otrsToAdditiveTrs sig
