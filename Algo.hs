@@ -26,7 +26,8 @@ import Signature
 import Control.Monad.Writer.Strict (Writer, runWriter, tell)
 import Terms
 import Maranget
-import Data.MemoTrie (memo2)
+--import Data.MemoTrie (memo2)
+import Data.Function.Memoize
 
 isBottom :: Term -> Bool
 isBottom Bottom = True
@@ -104,7 +105,7 @@ makeMemoDiff sig = (\\\)
     Alias x p1 \\ p2 = alias x (p1 \\\ p2)
     p1 \\ Alias x p2 = p1 \\\ p2
 
-    (\\\) = memo2 (\\)
+    (\\\) = memoize2 (\\)
 
 preMinimize :: [Term] -> [Term]
 preMinimize patterns = filter (not . isMatched) patterns

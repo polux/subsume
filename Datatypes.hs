@@ -12,7 +12,7 @@
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
 
-{-# LANGUAGE DeriveGeneric, TypeOperators, TypeFamilies #-}
+{-# LANGUAGE DeriveGeneric, TypeOperators, TypeFamilies, TemplateHaskell #-}
 
 module Datatypes (
   FunName(..),
@@ -31,6 +31,8 @@ import Data.String ( IsString(..) )
 import Data.MemoTrie
     ( Reg, HasTrie(..), untrieGeneric, trieGeneric, enumerateGeneric )
 import GHC.Generics ( Generic )
+import Data.Function.Memoize
+
 
 {- Datatypes -}
 
@@ -140,3 +142,12 @@ instance HasTrie Term where
   trie = trieGeneric TermTrie
   untrie = untrieGeneric unTermTrie
   enumerate = enumerateGeneric unTermTrie
+
+{- Memoizable instances -}
+
+deriveMemoizable ''VarName
+deriveMemoizable ''FunName
+deriveMemoizable ''TypeName
+deriveMemoizable ''Decl
+deriveMemoizable ''Signature
+deriveMemoizable ''Term
