@@ -1,4 +1,9 @@
 *Disclaimer: this is not an official Google product*
 
-Attempts at minimizing a set of patterns (as in pattern matching).
+Benchmarks for the otrs to trs paper.
 
+To run the benchmarks:
+
+  cd examples
+  stack build
+  stack exec otrs2trs -- -L 10 --output ../result.html

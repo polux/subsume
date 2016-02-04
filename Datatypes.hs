@@ -12,6 +12,8 @@
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
 
+{-# LANGUAGE DeriveGeneric, DeriveAnyClass #-}
+
 module Datatypes (
   FunName(..),
   TypeName(..),
@@ -26,36 +28,38 @@ module Datatypes (
 import Data.List ( intercalate )
 import Data.Maybe ( fromJust )
 import Data.String ( IsString(..) )
+import GHC.Generics (Generic)
+import Control.DeepSeq
 
 {- Datatypes -}
 
 newtype VarName = VarName String
-  deriving (Eq, Ord)
+  deriving (Eq, Ord, Generic, NFData)
 
 newtype FunName = FunName String
-  deriving (Eq, Ord)
+  deriving (Eq, Ord, Generic, NFData)
 
 newtype TypeName = TypeName String
-  deriving (Eq, Ord)
+  deriving (Eq, Ord, Generic, NFData)
 
 data Decl = Decl FunName [TypeName] TypeName
-  deriving (Eq, Ord)
+  deriving (Eq, Ord, Generic, NFData)
 
 data Signature = Signature [Decl] [Decl]
-  deriving (Eq, Ord)
+  deriving (Eq, Ord, Generic, NFData)
 
 data Term = Appl FunName [Term]
           | Var VarName
           | Plus Term Term
           | Alias VarName Term
           | Bottom
-  deriving (Eq, Ord)
+  deriving (Eq, Ord, Generic, NFData)
 
 data Rule = Rule Term Term
-  deriving (Eq, Ord)
+  deriving (Eq, Ord, Generic, NFData)
 
 data Module = Module Signature [Rule]
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Ord, Generic, NFData, Show)
 
 {- Pretty Printing -}
 

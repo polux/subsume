@@ -14,7 +14,7 @@
 
 {-# LANGUAGE OverloadedStrings #-}
 
-module Algo (otrsToTrs) where
+module Algo (SubsumeMode(..), otrsToTrs) where
 
 import Debug.Trace
 import Data.List ( intercalate, tails, inits )
@@ -25,7 +25,9 @@ import Datatypes
 import Signature
 import Control.Monad.Writer.Strict (Writer, runWriter, tell)
 import Terms
-import Maranget
+import qualified Maranget
+
+type SubsumeFunction = Signature -> [Term] -> Term -> Bool
 
 isBottom :: Term -> Bool
 isBottom Bottom = True
@@ -72,8 +74,9 @@ preMinimize patterns = filter (not . isMatched) patterns
   where isMatched p = any (matches' p) patterns
         matches' p q = p /= q && matches q p
 
-minimize :: Signature -> [Term] -> [Term]
-minimize sig ps = minimize' ps []
+
+minimize :: SubsumeFunction -> Signature -> [Term] -> [Term]
+minimize subsumes sig ps = minimize' ps []
   where minimize' [] kernel = kernel
         minimize' (p:ps) kernel =
            if subsumes sig (ps++kernel) p
@@ -112,11 +115,18 @@ otrsToAdditiveTrs sig rules = zipWith diff rules (inits patterns)
 aliasedTrsToTrs :: [Rule] -> [Rule]
 aliasedTrsToTrs = map removeAliases
 
-additiveTrsToAliasedTrs :: Signature -> [Rule] -> [Rule]
-additiveTrsToAliasedTrs sig rules = concatMap transform rules
+additiveTrsToAliasedTrs :: SubsumeFunction -> Signature -> [Rule] -> [Rule]
+additiveTrsToAliasedTrs subsumes sig rules = concatMap transform rules
   where transform (Rule lhs rhs) = map (flip Rule rhs) (expand lhs)
-        expand = minimize sig . preMinimize . S.toList . removePlusses
+        expand = minimize subsumes sig . preMinimize . S.toList . removePlusses
 
-otrsToTrs :: Signature -> [Rule] -> [Rule]
-otrsToTrs sig = aliasedTrsToTrs . additiveTrsToAliasedTrs sig . otrsToAdditiveTrs sig
+data SubsumeMode = Paper | Maranget
+
+subsumesPaper :: Signature -> [Term] -> Term -> Bool
+subsumesPaper sig ps p = difference sig p ps == Bottom
+
+otrsToTrs :: SubsumeMode -> Signature -> [Rule] -> [Rule]
+otrsToTrs mode sig = aliasedTrsToTrs . additiveTrsToAliasedTrs (subsumes mode) sig . otrsToAdditiveTrs sig
+  where subsumes Paper = subsumesPaper
+        subsumes Maranget = Maranget.subsumes
 

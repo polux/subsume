@@ -18,10 +18,37 @@ import Datatypes
 import Algo
 import Parser
 import System.Environment (getArgs)
+import Criterion.Main
+import System.Directory (getDirectoryContents, doesFileExist)
+import System.Exit (exitFailure)
+import Data.Either (partitionEithers)
+import System.IO (hPutStrLn, stderr)
+import Control.DeepSeq (deepseq)
+import Control.Monad (filterM)
+
+collect :: [Either a b] -> Either [a] [b]
+collect es = select (partitionEithers es)
+  where select (xs, ys) | null xs = Right ys
+                        | otherwise = Left xs
+
+getModules :: IO [(FilePath, Module)]
+getModules = do
+  examples <- getDirectoryContents "."
+  files <- filterM doesFileExist examples
+  filesContent <- mapM readFile files
+  case collect (zipWith parseModule files filesContent) of
+    Left errors -> do
+      mapM_ (hPutStrLn stderr . show) errors
+      exitFailure
+    Right modules ->
+      return (zip files modules)
+
+makeBenchmarks :: [(FilePath, Module)] -> [Benchmark]
+makeBenchmarks namedModules = map makeGroup namedModules
+  where makeGroup (name, Module sig trs) = bgroup name
+          [ bench "maranget" $ whnf (otrsToTrs Maranget sig) trs
+          , bench "paper" $ whnf (otrsToTrs Paper sig) trs ]
 
 main = do
-  [filename] <- getArgs
-  s <- readFile filename
-  case parseModule filename s of
-    Left err -> putStrLn (show err)
-    Right (Module sig trs) -> mapM_ print (otrsToTrs sig trs)
+  modules <- getModules
+  modules `deepseq` defaultMain (makeBenchmarks modules)
