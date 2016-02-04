@@ -46,8 +46,8 @@ getModules = do
 makeBenchmarks :: [(FilePath, Module)] -> [Benchmark]
 makeBenchmarks namedModules = map makeGroup namedModules
   where makeGroup (name, Module sig trs) = bgroup name
-          [ bench "maranget" $ whnf (otrsToTrs Maranget sig) trs
-          , bench "paper" $ whnf (otrsToTrs Paper sig) trs ]
+          [ bench "maranget" $ nf (otrsToTrs Maranget sig) trs
+          , bench "paper" $ nf (otrsToTrs Paper sig) trs ]
 
 main = do
   modules <- getModules
