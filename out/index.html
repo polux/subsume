@@ -39,55 +39,13 @@
 <body>
 <div id="left">
   <h2>Ordered TRS</h2>
-  <textarea rows="50" id="input-area" spellcheck="false">
-CONSTRUCTORS
-
-True : Bool
-False : Bool
-Z : Nat
-S : Nat -> Nat
-
-Nil : List
-Cons : Val * List -> List
-
-Nv : Nat -> Val
-Bv : Bool -> Val
-Undef : Val
-
-FUNCTIONS
-
-not : Bool -> Bool
-or : Bool * Bool -> Bool
-inf : Nat * Nat -> Bool
-plus : Nat * Nat -> Nat
-interp : Nat * List -> Val
-
-RULES
-
-interp(Z(), Nil())                                             -> Nv(Z())
-interp(S(Z()), Cons(Nv(n),Nil()))                              -> Nv(S(n))
-interp(S(S(Z())), Cons(Nv(m),Cons(Nv(n),Nil())))               -> Nv(plus(m,n))
-interp(S(S(S(Z()))), Nil())                                    -> Bv(True())
-interp(S(S(S(S(Z())))), Cons(Bv(b),Nil()))                     -> Bv(not(b))
-interp(S(S(S(S(S(Z()))))), Cons(Bv(b1),Cons(Bv(b2),Nil())))    -> Bv(or(b1,b2))
-interp(S(S(S(S(S(S(Z())))))), Cons(Nv(n1),Cons(Nv(n2),Nil()))) -> Bv(inf(n1,n2))
-interp(x,y)                                                    -> Undef()
-
-plus(x,Z())    -> x
-plus(x,S(y))   -> S(plus(x,y))
-
-inf(Z(),S(x))  -> True()
-inf(S(x),S(y)) -> inf(x,y)
-inf(x,y)       -> False()
-
-not(True())    -> False()
-not(False())   -> True()
-
-or(True(),x)   -> True
-or(x,True())   -> True
-or(False(),x)  -> x
-or(x,False())  -> x
-</textarea>
+  <select id="example-selector">
+      <option value="interp">interp</option>
+      <option value="balance">balance</option>
+      <option value="numadd">numadd</option>
+      <option value="cars">cars</option>
+  </select>
+  <textarea rows="50" id="input-area" spellcheck="false"></textarea>
   <button id="translate-button">Translate</button>
 </div>
 <div id="right">
