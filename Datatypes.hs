@@ -52,6 +52,7 @@ data Term = Appl FunName [Term]
           | Var VarName
           | Plus Term Term
           | Alias VarName Term
+          | Anti Term
           | Bottom
   deriving (Eq, Ord, Generic, NFData)
 
@@ -86,6 +87,7 @@ instance Show Term where
   show (Var x) = show x
   show (Plus p1 p2) = "(" ++ show p1 ++ " + " ++ show p2 ++ ")"
   show (Alias x p) = show x ++ "@" ++ show p
+  show (Anti p) = "!" ++ show p
   show Bottom = "⊥"
 
 instance Show Rule where
