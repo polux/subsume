@@ -39,8 +39,8 @@ interleave [] [] = []
 interleave xs ys = zipWith3 glue (inits xs) ys (tails (tail xs))
   where glue xs x ys = xs ++ x : ys
 
-difference :: Signature -> Term -> [Term] -> Term
-difference sig p ps = foldl (\\) p ps
+complement :: Signature -> Term -> Term -> Term
+complement sig p1 p2 = p1 \\ p2
   where
     appl f ps | any isBottom ps = Bottom
               | otherwise = Appl f ps
@@ -49,25 +49,26 @@ difference sig p ps = foldl (\\) p ps
     plus t Bottom = t
     plus t u = Plus t u
 
-    plus' = foldr plus Bottom
+    sum = foldr plus Bottom
 
     alias x Bottom = Bottom
     alias x t = Alias x t
 
     u \\ (Var _) = Bottom
     u \\ Bottom = u
-    (Var x) \\ p@(Appl g ps) = alias x (plus' [pattern f \\ p | f <- fs])
+    (Var x) \\ p@(Appl g ps) = alias x (sum [pattern f \\ p | f <- fs])
       where fs = ctorsOfSameRange sig g
             pattern f = Appl f (replicate (arity sig f) (Var "_"))
     Bottom \\ Appl _ _ = Bottom
     Appl f ps \\ Appl g qs
         | f /= g || someUnchanged = appl f ps
-        | otherwise = plus' [appl f ps' | ps' <- interleave ps pqs]
+        | otherwise = sum [appl f ps' | ps' <- interleave ps pqs]
       where pqs = zipWith (\\) ps qs
             someUnchanged = or (zipWith (==) ps pqs)
     Plus q1 q2 \\ p@(Appl _ _) = plus (q1 \\ p) (q2 \\ p)
     Alias x p1 \\ p2 = alias x (p1 \\ p2)
     p1 \\ Alias x p2 = p1 \\ p2
+    p \\ (Plus p1 p2) = (p \\ p1) \\ p2
 
 makeMemoSubsume :: Signature -> [Term] -> Term -> Bool
 makeMemoSubsume sig = let difference = makeMemoDifference sig in \ps p -> difference p ps == Bottom
@@ -147,10 +148,20 @@ removeAliases (Rule lhs rhs) = Rule lhs' (substitute subst rhs)
           tell (M.singleton x t')
           return t'
 
+expandAnti :: Signature -> Term -> Term
+expandAnti sig t = expandAnti' t
+  where expandAnti' (Appl f ts) = Appl f (map expandAnti' ts)
+        expandAnti' (Anti t) = complement sig (Var "_") (expandAnti' t)
+        expandAnti' (Var x) = Var x
+
+antiTrsToOtrs :: Signature -> [Rule] -> [Rule]
+antiTrsToOtrs sig rules = [Rule (expandAnti sig lhs) rhs | Rule lhs rhs <- rules]
+
 otrsToAdditiveTrs :: Signature -> [Rule] -> [Rule]
 otrsToAdditiveTrs sig rules = zipWith diff rules (inits patterns)
   where patterns = [lhs | Rule lhs _ <- rules]
-        diff (Rule lhs rhs) lhss = Rule (difference sig lhs lhss) rhs
+        diff (Rule lhs rhs) lhss = Rule (complement sig lhs (sum lhss)) rhs
+        sum = foldr Plus Bottom
 
 aliasedTrsToTrs :: [Rule] -> [Rule]
 aliasedTrsToTrs = map removeAliases
@@ -162,5 +173,8 @@ additiveTrsToAliasedTrs sig rules = concatMap transform rules
         subsume = makeMemoSubsume sig
 
 otrsToTrs :: Signature -> [Rule] -> [Rule]
-otrsToTrs sig = aliasedTrsToTrs . additiveTrsToAliasedTrs sig . otrsToAdditiveTrs sig
+otrsToTrs sig = aliasedTrsToTrs
+              . additiveTrsToAliasedTrs sig
+              . otrsToAdditiveTrs sig
+              . antiTrsToOtrs sig
 
