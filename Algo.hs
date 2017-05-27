@@ -108,8 +108,10 @@ removeAliases (Rule lhs rhs) = Rule lhs' (substitute subst rhs)
 expandAnti :: Signature -> Term -> Term
 expandAnti sig t = expandAnti' t
   where expandAnti' (Appl f ts) = Appl f (map expandAnti' ts)
+        expandAnti' (Plus t1 t2) = Plus (expandAnti' t1) (expandAnti' t2)
         expandAnti' (Anti t) = complement sig (Var "_") (expandAnti' t)
         expandAnti' (Var x) = Var x
+        expandAnti' Bottom = Bottom
 
 antiTrsToOtrs :: Signature -> [Rule] -> [Rule]
 antiTrsToOtrs sig rules = [Rule (expandAnti sig lhs) rhs | Rule lhs rhs <- rules]

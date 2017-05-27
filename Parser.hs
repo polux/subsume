@@ -23,7 +23,7 @@ import qualified Text.Parsec.Token as P
 
 language = javaStyle
   { P.reservedNames = ["CONSTRUCTORS", "FUNCTIONS", "RULES"]
-  , P.reservedOpNames = ["=", "->", ":", "*", "!"]
+  , P.reservedOpNames = ["=", "->", ":", "*", "!", "+"]
   }
 
 lexer = P.makeTokenParser javaStyle
@@ -40,6 +40,7 @@ arrow = P.reservedOp lexer "->"
 pipe = P.reservedOp lexer "|"
 star = P.reservedOp lexer "*"
 bang = P.reservedOp lexer "!"
+plus = P.reserved lexer "+"
 
 constructorsKw = P.reserved lexer "CONSTRUCTORS"
 functionsKw = P.reserved lexer "FUNCTIONS"
@@ -49,14 +50,19 @@ funName = FunName <$> identifier
 varName = VarName <$> identifier
 typeName = TypeName <$> identifier
 
+termSum :: Parser Term
+termSum = mkPlus <$> term `sepBy1` plus
+  where mkPlus [t] = t
+        mkPlus ts = foldr1 Plus ts
+
 term :: Parser Term
-term = try (Appl <$> funName <*> parens (term `sepBy` comma))
-       <|> mkAnti <$> bang <*> term
+term = try (Appl <$> funName <*> parens (termSum `sepBy` comma))
+       <|> mkAnti <$> bang <*> (term <|> parens termSum)
        <|> Var <$> varName
   where mkAnti _ t = Anti t
 
 rule :: Parser Rule
-rule = mkRule <$> term <*> arrow <*> term
+rule = mkRule <$> termSum <*> arrow <*> term
   where mkRule lhs _ rhs = Rule lhs rhs
 
 rules :: Parser [Rule]
