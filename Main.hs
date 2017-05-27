@@ -12,46 +12,59 @@
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
 
-
 import Datatypes
 import Algo
 import Parser
 import Examples
 
-import Control.Applicative ((<$>))
-import GHCJS.DOM (webViewGetDomDocument, runWebGUI)
-import GHCJS.DOM.Document (getElementById)
-import GHCJS.DOM.Element (setInnerHTML, click, change)
-import GHCJS.DOM.HTMLTextAreaElement (castToHTMLTextAreaElement)
-import GHCJS.DOM.HTMLSelectElement (castToHTMLSelectElement)
-import qualified GHCJS.DOM.HTMLTextAreaElement as TextArea
-import qualified GHCJS.DOM.HTMLSelectElement as Select
+import Datatypes (Module(Module))
+import Algo (otrsToTrs)
+import Parser (parseModule)
+import Examples (numadd, interp, cars, balance)
+import Control.Monad.IO.Class ()
+import Control.Concurrent.MVar ()
+import GHCJS.DOM (currentDocumentUnchecked)
+import GHCJS.DOM.Types
+       (HTMLTextAreaElement(HTMLTextAreaElement),
+        HTMLSelectElement(HTMLSelectElement),
+        HTMLButtonElement(HTMLButtonElement), Element(Element),
+        unsafeCastTo)
+import GHCJS.DOM.Document ()
+import GHCJS.DOM.Element (setInnerHTML)
+import GHCJS.DOM.Node ()
 import GHCJS.DOM.EventM (on)
+import GHCJS.DOM.GlobalEventHandlers (click, change)
+import GHCJS.DOM.NonElementParentNode (getElementByIdUnsafe)
+import qualified GHCJS.DOM.HTMLTextAreaElement as TextArea
+       (setValue, getValue)
+import qualified GHCJS.DOM.HTMLSelectElement as Select (getValue)
 
 examples =
-  [ ("interp", interp)
-  , ("numadd", numadd)
-  , ("balance", balance)
-  , ("cars", cars)
-  ]
-
-main = runWebGUI $ \ webView -> do
-    Just doc <- webViewGetDomDocument webView
-    Just inputArea <- fmap castToHTMLTextAreaElement <$> getElementById doc "input-area"
-    Just outputArea <- getElementById doc "output-area"
-    Just translateButton <- getElementById doc "translate-button"
-    Just exampleSelector <- fmap castToHTMLSelectElement <$> getElementById doc "example-selector"
-    on translateButton click $ do
-      Just inputText <- TextArea.getValue inputArea
-      setInnerHTML outputArea (Just (run inputText))
-      return ()
-    on exampleSelector change $ do
-      Just name <- Select.getValue exampleSelector
-      TextArea.setValue inputArea (lookup name examples)
-    TextArea.setValue inputArea (Just interp)
-    return ()
+  [("interp", interp), ("numadd", numadd), ("balance", balance), ("cars", cars)]
 
 run :: String -> String
-run s = case parseModule "text area" s of
+run s =
+  case parseModule "text area" s of
     Left err -> show err
     Right (Module sig trs) -> unlines (map show (otrsToTrs sig trs))
+
+main = do
+  doc <- currentDocumentUnchecked
+  inputArea <-
+    unsafeCastTo HTMLTextAreaElement =<< getElementByIdUnsafe doc "input-area"
+  outputArea <- getElementByIdUnsafe doc "output-area"
+  translateButton <-
+    unsafeCastTo HTMLButtonElement =<<
+    getElementByIdUnsafe doc "translate-button"
+  exampleSelector <-
+    unsafeCastTo HTMLSelectElement =<<
+    getElementByIdUnsafe doc "example-selector"
+  on translateButton click $
+    do Just inputText <- TextArea.getValue inputArea
+       setInnerHTML outputArea (Just (run inputText))
+       return ()
+  on exampleSelector change $
+    do name <- Select.getValue exampleSelector
+       TextArea.setValue inputArea (lookup name examples)
+  TextArea.setValue inputArea (Just interp)
+  return ()
