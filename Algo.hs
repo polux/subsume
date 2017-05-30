@@ -71,7 +71,7 @@ complement sig p1 p2 = p1 \\ p2
 preMinimize :: [Term] -> [Term]
 preMinimize patterns = filter (not . isMatched) patterns
   where isMatched p = any (matches' p) patterns
-        matches' p q = p /= q && matches q p
+        matches' p q = not (matches p q) && matches q p
 
 minimize :: Signature -> [Term] -> [Term]
 minimize sig ps = minimize' ps []
@@ -109,6 +109,7 @@ expandAnti :: Signature -> Term -> Term
 expandAnti sig t = expandAnti' t
   where expandAnti' (Appl f ts) = Appl f (map expandAnti' ts)
         expandAnti' (Plus t1 t2) = Plus (expandAnti' t1) (expandAnti' t2)
+        expandAnti' (Compl t1 t2) = complement sig (expandAnti' t1) (expandAnti' t2)
         expandAnti' (Anti t) = complement sig (Var "_") (expandAnti' t)
         expandAnti' (Var x) = Var x
         expandAnti' Bottom = Bottom
@@ -130,9 +131,7 @@ additiveTrsToAliasedTrs sig rules = concatMap transform rules
   where transform (Rule lhs rhs) = map (flip Rule rhs) (expand lhs)
         expand = minimize sig . preMinimize . S.toList . removePlusses
 
-otrsToTrs :: Signature -> [Rule] -> [Rule]
 otrsToTrs sig = aliasedTrsToTrs
               . additiveTrsToAliasedTrs sig
               . otrsToAdditiveTrs sig
               . antiTrsToOtrs sig
-

@@ -47,6 +47,7 @@ data Signature = Signature [Decl] [Decl]
 data Term = Appl FunName [Term]
           | Var VarName
           | Plus Term Term
+          | Compl Term Term
           | Alias VarName Term
           | Anti Term
           | Bottom
@@ -82,6 +83,7 @@ instance Show Term where
   show (Appl f ps) = show f ++ parSep (map show ps)
   show (Var x) = show x
   show (Plus p1 p2) = "(" ++ show p1 ++ " + " ++ show p2 ++ ")"
+  show (Compl p1 p2) = "(" ++ show p1 ++ " \\ " ++ show p2 ++ ")"
   show (Alias x p) = show x ++ "@" ++ show p
   show (Anti p) = "!" ++ show p
   show Bottom = "⊥"

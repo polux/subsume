@@ -23,7 +23,7 @@ import qualified Text.Parsec.Token as P
 
 language = javaStyle
   { P.reservedNames = ["CONSTRUCTORS", "FUNCTIONS", "RULES"]
-  , P.reservedOpNames = ["=", "->", ":", "*", "!", "+"]
+  , P.reservedOpNames = ["=", "->", ":", "*", "!", "+", "\\"]
   }
 
 lexer = P.makeTokenParser javaStyle
@@ -41,6 +41,7 @@ pipe = P.reservedOp lexer "|"
 star = P.reservedOp lexer "*"
 bang = P.reservedOp lexer "!"
 plus = P.reserved lexer "+"
+minus = P.reserved lexer "\\"
 
 constructorsKw = P.reserved lexer "CONSTRUCTORS"
 functionsKw = P.reserved lexer "FUNCTIONS"
@@ -51,14 +52,20 @@ varName = VarName <$> identifier
 typeName = TypeName <$> identifier
 
 termSum :: Parser Term
-termSum = mkPlus <$> term `sepBy1` plus
+termSum = mkPlus <$> termCompl `sepBy1` plus
   where mkPlus [t] = t
         mkPlus ts = foldr1 Plus ts
 
+termCompl :: Parser Term
+termCompl = try (mkCompl <$> term <*> minus <*> term)
+            <|> term
+  where mkCompl t1 _ t2 = Compl t1 t2
+
 term :: Parser Term
 term = try (Appl <$> funName <*> parens (termSum `sepBy` comma))
-       <|> mkAnti <$> bang <*> (term <|> parens termSum)
+       <|> mkAnti <$> bang <*> term
        <|> Var <$> varName
+       <|> parens termSum
   where mkAnti _ t = Anti t
 
 rule :: Parser Rule
