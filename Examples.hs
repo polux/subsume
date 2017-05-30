@@ -154,4 +154,4 @@ extendedSyntax = "\
 \\n\
 \RULES\n\
 \\n\
-\g( (B(x) + C(y)) \\ (B(C(z)) + C(B(w))) ) -> A()"
+\f( (B(x) + C(y)) \\ (B(C(z)) + C(B(w))) ) -> A()"
