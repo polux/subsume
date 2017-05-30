@@ -20,7 +20,7 @@ import Examples
 import Datatypes (Module(Module))
 import Algo (otrsToTrs)
 import Parser (parseModule)
-import Examples (numadd, interp, cars, balance)
+import Examples (numadd, interp, cars, balance, extendedSyntax)
 import Control.Monad.IO.Class ()
 import Control.Concurrent.MVar ()
 import GHCJS.DOM (currentDocumentUnchecked)
@@ -40,7 +40,12 @@ import qualified GHCJS.DOM.HTMLTextAreaElement as TextArea
 import qualified GHCJS.DOM.HTMLSelectElement as Select (getValue)
 
 examples =
-  [("interp", interp), ("numadd", numadd), ("balance", balance), ("cars", cars)]
+  [ ("interp", interp)
+  , ("numadd", numadd)
+  , ("balance", balance)
+  , ("cars", cars)
+  , ("extended syntax", extendedSyntax)
+  ]
 
 run :: String -> String
 run s =

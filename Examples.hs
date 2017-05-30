@@ -12,7 +12,7 @@
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
 
-module Examples (interp, balance, numadd, cars) where
+module Examples (interp, balance, numadd, cars, extendedSyntax) where
 
 interp = "\
 \CONSTRUCTORS\n\
@@ -140,3 +140,18 @@ cars = "\
 \paint(car(!diesel(), !suv())) -> white()\n\
 \paint(x) -> red()"
 
+extendedSyntax = "\
+\CONSTRUCTORS\n\
+\\n\
+\A : T\n\
+\B : T -> T\n\
+\C : T -> T\n\
+\D : T -> T\n\
+\\n\
+\FUNCTIONS\n\
+\\n\
+\f : T -> T\n\
+\\n\
+\RULES\n\
+\\n\
+\g( (B(x) + C(y)) \\ (B(C(z)) + C(B(w))) ) -> A()"
