@@ -21,6 +21,7 @@ import Datatypes (Module(Module))
 import Algo (otrsToTrs)
 import Parser (parseModule)
 import Examples (numadd, interp, cars, balance, extendedSyntax)
+import Data.Maybe (fromJust)
 import Control.Monad.IO.Class ()
 import Control.Concurrent.MVar ()
 import GHCJS.DOM (currentDocumentUnchecked)
@@ -65,11 +66,11 @@ main = do
     unsafeCastTo HTMLSelectElement =<<
     getElementByIdUnsafe doc "example-selector"
   on translateButton click $
-    do Just inputText <- TextArea.getValue inputArea
-       setInnerHTML outputArea (Just (run inputText))
+    do inputText <- TextArea.getValue inputArea
+       setInnerHTML outputArea (run inputText)
        return ()
   on exampleSelector change $
     do name <- Select.getValue exampleSelector
-       TextArea.setValue inputArea (lookup name examples)
-  TextArea.setValue inputArea (Just interp)
+       TextArea.setValue inputArea (fromJust (lookup name examples))
+  TextArea.setValue inputArea interp
   return ()
