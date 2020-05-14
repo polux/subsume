@@ -1,1 +1,0 @@
-../result/bin/otrs2trs.jsexe/all.js

@@ -5,7 +5,9 @@ cabal-version:       >=1.10
 
 executable otrs2trs
   main-is:             Main.hs
-  build-depends:       base, containers, mtl, parsec, ghcjs-dom
+  build-depends:       base, containers, mtl, parsec, ghcjs-dom,raw-strings-qq
+  if !impl(ghcjs)
+    build-depends: jsaddle-warp
   default-language:    Haskell2010
   other-modules: Algo, Datatypes, Examples, Maranget, Parser, Signature, Terms
   ghc-options:         -O2
